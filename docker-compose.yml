@@ -1,0 +1,43 @@
+services:
+  # PostgreSQL Service
+  postgres:
+    image: postgres
+    container_name: workhive_db
+    restart: always
+    environment:
+      POSTGRES_USER: random_username
+      POSTGRES_PASSWORD: random_password
+      POSTGRES_DB: random_dbname
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5434:5432'
+
+  # NestJS Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: WorkHive_Server
+    restart: always
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://random_username:random_password@postgres:5432/random_dbname?schema=public
+      JWT_SECRET: random_secret
+      BCRYPT_ROUNDS: 10
+      CLOUD_NAME: ${CLOUD_NAME}
+      API_KEY: ${API_KEY}
+      API_SECRET: ${API_SECRET}
+      FOLDER_NAME: ${FOLDER_NAME}
+    ports:
+      - '3000:3000'
+    depends_on:
+      - postgres
+    command: >
+      sh -c "
+      npx prisma migrate deploy &&
+      npm start
+      "
+
+volumes:
+  postgres_data:
