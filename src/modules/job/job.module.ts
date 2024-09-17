@@ -15,6 +15,8 @@ export class JobModule {
       .forRoutes(
         { path: 'job/post-job', method: RequestMethod.POST },
         { path: 'job/user-jobs', method: RequestMethod.GET },
+        { path: 'job/update-job/:id', method: RequestMethod.PUT },
+        { path: 'job/delete-job/:id', method: RequestMethod.DELETE },
       );
   }
 }

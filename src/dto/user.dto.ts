@@ -27,6 +27,7 @@ export const updateProfileSchema = z
     phoneNumber: z.string().trim().optional(),
     bio: z.string().trim().optional(),
     skills: z.array(z.string()).optional(),
+    resumeOriginalName: z.string().trim().optional(),
   })
   .passthrough();
 

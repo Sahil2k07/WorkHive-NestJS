@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   InternalServerErrorException,
   NotAcceptableException,
@@ -134,6 +135,29 @@ export class CompanyController {
       success: true,
       message: 'Got All created Companys successfully',
       company,
+    };
+  }
+
+  @Delete('delete-company')
+  async deleteComapany(@Req() req: Request) {
+    if (req.user.role !== 'Recruiter')
+      throw new UnauthorizedException('Recruiters only Route');
+
+    const { id } = req.body;
+
+    if (!id) throw new BadRequestException('Company details not Found');
+
+    const existingCompany = await this.company.findCompanyById(id);
+
+    if (!existingCompany)
+      throw new BadRequestException('Company data not Found');
+
+    const deletedCompany = await this.company.deleteCompany(id);
+
+    return {
+      success: true,
+      message: 'Company deleted successfully',
+      deletedCompany,
     };
   }
 }

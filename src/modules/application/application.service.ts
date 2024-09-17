@@ -33,14 +33,14 @@ export class ApplicationService {
   async getAppliedJobs(id: string) {
     return await this.prisma.application.findMany({
       where: { applicant: { id } },
-      include: { job: true },
+      include: { job: { include: { company: true } } },
     });
   }
 
   async getApplicants(id: string) {
     return await this.prisma.application.findMany({
       where: { job: { id } },
-      include: { applicant: true },
+      include: { applicant: { include: { profile: true } } },
     });
   }
 

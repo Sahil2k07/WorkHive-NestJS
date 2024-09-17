@@ -47,7 +47,10 @@ export class ApplicationController {
 
   @Get('applied-jobs')
   async getAppliedJobs(@Req() req: Request) {
-    const { id } = req.user;
+    const { id, role } = req.user;
+
+    if (role !== 'Student')
+      throw new UnauthorizedException('Students only Route');
 
     const appliedJobs = await this.application.getAppliedJobs(id);
 

@@ -21,16 +21,12 @@ import {
 } from 'src/dto/user.dto';
 import { ZodPipe } from 'src/pipe/ZodPipe.pipe';
 import type { Request, Response } from 'express';
-import { CloudinaryService } from 'src/config/cloudinary.service';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 
 @Controller('user')
 export class UserController {
-  constructor(
-    private readonly user: UserService,
-    private readonly cloudinary: CloudinaryService,
-  ) {}
+  constructor(private readonly user: UserService) {}
 
   @Post('signup')
   @UsePipes(new ZodPipe(signupSchema))
@@ -45,29 +41,16 @@ export class UserController {
       throw new BadRequestException('Upload a Profile Photo');
     }
 
-    const profilePhoto = Array.isArray(req.files.profilePhoto)
-      ? req.files.profilePhoto[0]
-      : req.files.profilePhoto;
-
     const existingUser = await this.user.findUser(email);
 
     if (existingUser) {
-      return {
-        success: false,
-        message: 'User already exists',
-      };
+      throw new UnauthorizedException('User Already Exists');
     }
 
-    const cloudResponse = await this.cloudinary.Uploader(
-      profilePhoto,
-      process.env.FOLDER_NAME,
+    const profilePhoto = await this.user.uploadFile(
+      req.files.profilePhoto,
+      'Error While uploading Profile Photo',
     );
-
-    if (!cloudResponse) {
-      throw new InternalServerErrorException(
-        'Unable to upload your Profile Photo',
-      );
-    }
 
     const hashedPassword = await bcrypt.hash(
       password,
@@ -80,7 +63,7 @@ export class UserController {
       hashedPassword,
       phoneNumber,
       role,
-      cloudResponse.secure_url,
+      profilePhoto,
     );
 
     return {
@@ -148,32 +131,30 @@ export class UserController {
   @HttpCode(200)
   @UsePipes(new ZodPipe(updateProfileSchema))
   async updateProfile(@Req() req: Request) {
-    const { name, email, phoneNumber, bio, skills } =
+    const { name, email, phoneNumber, bio, skills, resumeOriginalName } =
       req.body as UpdateProfileDto;
+
+    const skillsArray = Array.isArray(skills) ? skills : JSON.parse(skills);
 
     const user = await this.user.findUser(email);
 
     if (!user) throw new BadRequestException('User not recognized');
 
     let profilePhoto = user.profile.profilePhoto;
+    let resume = user.profile.resume;
 
     if (req.files && req.files.profilePhoto) {
-      try {
-        const picture = Array.isArray(req.files.profilePhoto)
-          ? req.files.profilePhoto[0]
-          : req.files.profilePhoto;
+      profilePhoto = await this.user.uploadFile(
+        req.files.profilePhoto,
+        'Error Updating Profile Photo',
+      );
+    }
 
-        const cloudResponse = await this.cloudinary.Uploader(
-          picture,
-          process.env.FOLDER_NAME,
-        );
-
-        profilePhoto = cloudResponse.secure_url;
-      } catch (error) {
-        throw new InternalServerErrorException(
-          'Error while Updating Profile Photo',
-        );
-      }
+    if (req.files && req.files.resume) {
+      resume = await this.user.uploadFile(
+        req.files.resume,
+        'Error Uploading Resume',
+      );
     }
 
     const updatedUser = await this.user.updateUser(
@@ -181,8 +162,10 @@ export class UserController {
       name || user.name,
       phoneNumber || user.phoneNumber,
       bio || user.profile.bio,
-      skills || user.profile.skills,
+      skillsArray || user.profile.skills,
       profilePhoto,
+      resumeOriginalName || user.profile.resumeOriginalName,
+      resume,
     );
 
     return {

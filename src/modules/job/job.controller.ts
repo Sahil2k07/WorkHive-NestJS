@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
   Post,
+  Put,
   Query,
   Req,
   UnauthorizedException,
@@ -13,7 +15,12 @@ import {
 import { JobService } from './job.service';
 import type { Request } from 'express';
 import { ZodPipe } from 'src/pipe/ZodPipe.pipe';
-import { type PostJobDto, postJobSchema } from 'src/dto/job.dto';
+import {
+  type PostJobDto,
+  postJobSchema,
+  type UpdateJobDto,
+  updateJobSchema,
+} from 'src/dto/job.dto';
 
 @Controller('job')
 export class JobController {
@@ -48,8 +55,17 @@ export class JobController {
       throw new BadRequestException('All Fields Required');
     }
 
+    const requirementsArray = Array.isArray(requirements)
+      ? requirements
+      : JSON.parse(requirements);
+
     if (req.user.role !== 'Recruiter')
       throw new UnauthorizedException('Recruiters only Route');
+
+    const existingJob = await this.job.checkJob(title, location, companyId);
+
+    if (existingJob)
+      throw new BadRequestException('You have posted Similar job Recently');
 
     const userId = req.user.id;
 
@@ -57,7 +73,7 @@ export class JobController {
       userId,
       title,
       description,
-      requirements,
+      requirementsArray,
       Number(salary),
       location,
       jobType,
@@ -109,9 +125,12 @@ export class JobController {
 
   @Get('user-jobs')
   async userJobs(@Req() req: Request) {
-    const { id } = req.user;
+    const { id, role } = req.user;
 
-    if (!id) throw new UnauthorizedException('Invalid user Request');
+    if (!id || !role) throw new UnauthorizedException('Invalid user Request');
+
+    if (role !== 'Recruiter')
+      throw new UnauthorizedException('Recruiters only Route');
 
     const jobs = await this.job.userJobs(id);
 
@@ -119,6 +138,88 @@ export class JobController {
       success: true,
       message: 'Got User created Jobs Successfully',
       jobs,
+    };
+  }
+
+  @Put('update-job/:id')
+  @UsePipes(new ZodPipe(updateJobSchema))
+  async updateJob(@Req() req: Request) {
+    const { id } = req.params;
+
+    if (!id) throw new BadRequestException('JobId details Required');
+
+    if (!req.user || req.user.role !== 'Recruiter')
+      throw new UnauthorizedException('Recruiter only Route');
+
+    const {
+      title,
+      requirements,
+      description,
+      salary,
+      location,
+      jobType,
+      position,
+      experienceLevel,
+    } = req.body as UpdateJobDto;
+
+    if (
+      !title ||
+      !requirements ||
+      !description ||
+      !salary ||
+      !location ||
+      !jobType ||
+      !position ||
+      !experienceLevel
+    )
+      throw new BadRequestException('Required Fields Missing');
+
+    const requirementsArray = Array.isArray(requirements)
+      ? requirements
+      : JSON.parse(requirements);
+
+    const existingJob = await this.job.getJob(id);
+
+    if (!existingJob) throw new BadRequestException('Job Post not Found');
+
+    const updatedJob = await this.job.updateJob(
+      id,
+      title || existingJob.title,
+      description || existingJob.description,
+      requirementsArray || existingJob.requirements,
+      Number(salary) || existingJob.salary,
+      location || existingJob.location,
+      jobType || existingJob.jobType,
+      Number(experienceLevel) || existingJob.experienceLevel,
+      Number(position) || existingJob.experienceLevel,
+    );
+
+    return {
+      success: true,
+      message: 'Job Post Updated Successfully',
+      updatedJob,
+    };
+  }
+
+  @Delete('delete-job/:id')
+  async deleteJob(@Req() req: Request) {
+    const { id } = req.params;
+
+    if (!id) throw new BadRequestException('Job Details Required');
+
+    if (!req.user || req.user.role !== 'Recruiter')
+      throw new UnauthorizedException('Recruiter only Route');
+
+    const existingJob = await this.job.getJob(id);
+
+    if (!existingJob) throw new BadRequestException("Job Post doesn't exist");
+
+    const deletedJob = await this.job.deleteJob(id);
+
+    return {
+      success: true,
+      message: 'Job Post Deleted Successfully',
+      deletedJob,
     };
   }
 }

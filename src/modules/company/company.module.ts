@@ -17,6 +17,7 @@ export class CompanyModule {
         { path: 'company/register-company', method: RequestMethod.POST },
         { path: 'company/update-company/:id', method: RequestMethod.PUT },
         { path: 'company/user-company', method: RequestMethod.GET },
+        { path: 'company/delete-company', method: RequestMethod.DELETE },
       );
   }
 }

@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { CloudinaryService } from 'src/config/cloudinary.service';
 import { PrismaService } from 'src/config/prisma.service';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinary: CloudinaryService,
+  ) {}
 
   async findUser(email: string) {
     return await this.prisma.user.findUnique({
@@ -32,8 +36,6 @@ export class UserService {
           create: {
             profilePhoto,
             bio: 'Please provide a bio',
-            resume: 'Upload a resume',
-            resumeOriginalName: name,
           },
         },
       },
@@ -50,6 +52,8 @@ export class UserService {
     bio: string,
     skills: string[],
     profilePhoto: string,
+    resumeOriginalName: string,
+    resume: string,
   ) {
     return await this.prisma.user.update({
       where: { email },
@@ -61,10 +65,27 @@ export class UserService {
             bio,
             skills,
             profilePhoto,
+            resumeOriginalName,
+            resume,
           },
         },
       },
       include: { profile: true },
     });
+  }
+
+  async uploadFile(file: File, errorMessage: string) {
+    const media = Array.isArray(file) ? file[0] : file;
+
+    try {
+      const cloudResponse = await this.cloudinary.Uploader(
+        media,
+        process.env.FOLDER_NAME,
+      );
+
+      return cloudResponse.secure_url;
+    } catch (e) {
+      throw new InternalServerErrorException(errorMessage);
+    }
   }
 }

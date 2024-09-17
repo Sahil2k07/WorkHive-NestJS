@@ -17,8 +17,8 @@ export class CompanyService {
     return await this.prisma.company.create({
       data: {
         name,
-        description: 'Add a description',
-        location: 'Add a location for your Company',
+        description: 'Add description',
+        location: 'Add Location',
         logo: '',
         website: 'Provide a Link for your Website if exists',
         user: { connect: { id } },
@@ -49,6 +49,26 @@ export class CompanyService {
   async findUserCompanys(id: string) {
     return await this.prisma.company.findMany({
       where: { user: { id } },
+    });
+  }
+
+  async deleteCompany(id: string) {
+    await this.prisma.application.deleteMany({
+      where: {
+        job: {
+          companyId: id,
+        },
+      },
+    });
+
+    await this.prisma.job.deleteMany({
+      where: {
+        companyId: id,
+      },
+    });
+
+    return await this.prisma.company.delete({
+      where: { id },
     });
   }
 }

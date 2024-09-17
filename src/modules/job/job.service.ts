@@ -56,6 +56,44 @@ export class JobService {
     });
   }
 
+  async updateJob(
+    id: string,
+    title: string,
+    description: string,
+    requirements: string[],
+    salary: number,
+    location: string,
+    jobType: string,
+    experienceLevel: number,
+    position: number,
+  ) {
+    return await this.prisma.job.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        requirements,
+        salary,
+        location,
+        jobType,
+        experienceLevel,
+        position,
+      },
+    });
+  }
+
+  async deleteJob(id: string) {
+    await this.prisma.application.deleteMany({ where: { jobId: id } });
+
+    return await this.prisma.job.delete({ where: { id } });
+  }
+
+  async checkJob(title: string, location: string, companyId: string) {
+    return await this.prisma.job.findFirst({
+      where: { title, location, companyId },
+    });
+  }
+
   async userJobs(id: string) {
     return await this.prisma.job.findMany({
       where: { createdBy: { id } },

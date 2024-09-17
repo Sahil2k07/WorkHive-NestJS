@@ -11,6 +11,7 @@ declare global {
       files: {
         profilePhoto: File;
         logo: File;
+        resume: File;
       };
     }
   }
